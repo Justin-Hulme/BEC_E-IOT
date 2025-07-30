@@ -86,7 +86,7 @@ enum command_type {
 // enum for the types of messages used by built in functions
 enum default_message_type : uint16_t {
     LOG_MESSAGE = 65535,
-    SEND_COMMANDS = 65534
+    SEND_COMMAND = 65534
 };
 
 // struct for commands
@@ -116,8 +116,8 @@ namespace BEC_E {
     void register_loop_function(void (*loop_function)(ArgValue*)); // adds a function to the user defined loop functions
     PacketHeader build_packet_header(uint16_t, uint16_t, uint16_t, uint16_t); // builds a packet header removing the need to worry about all fields
     void send_log(char *, uint16_t); // sends a log message to the server
-    void send_TCP(PacketHeader, void*, int); // sends a packet over TCP
-    void send_UDP(PacketHeader, void*, int); // sends a packet over UDP
+    void send_TCP(PacketHeader, void*, uint16_t); // sends a packet over TCP
+    void send_UDP(PacketHeader, void*, uint16_t); // sends a packet over UDP
     void safe_delay(unsigned long); // delays for the specified time but runs the main loop while waiting
 }
 

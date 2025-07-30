@@ -20,10 +20,10 @@ Command built_in_commands[] = {
     {"Send Commands", 65531, VOID_C, send_commands}
 };
 
-// array of registered commands
+// array of registered commands defaulting to a null command
 Command registered_commands [MAX_REGISTERED_COMMAND_NUM] = {nullptr, 65535, VOID_C, nullptr};
 
-// array of loop functions
+// array of loop functions defaulting to a null function
 void (*loop_functions[MAX_LOOP_FUNCTION_NUM])() = {nullptr};
 
 // give everything access to the server ip
@@ -36,6 +36,7 @@ WiFiUDP udp_client;
 // function prototypes for internal functions
 bool connect_wifi(char*, char*);
 void run_AP();
+uint16_t calculate_crc16(const uint8_t* data, size_t length);
 
 namespace BEC_E {
     void main_setup(){
@@ -151,18 +152,50 @@ namespace BEC_E {
             tcp_client.connect(server_ip, SERVER_PORT_TCP);
         }
 
-        // send the header and then the data
-        tcp_client.write((const uint8_t*)&header, sizeof(PacketHeader));
-        tcp_client.write((const uint8_t*)data, data_length);
+        // get the total size of the data send
+        size_t total_legth = sizeof(PacketHeader) + data_length;
+        
+        // make a buffer for the data
+        uint8_t* buffer = new uint8_t[total_legth];
+
+        // add data to the buffer
+        memcpy(buffer, &header, sizeof(PacketHeader));
+        memcpy(buffer + sizeof(PacketHeader), data, data_length);
+
+        // calculate the crc
+        uint16_t crc = calculate_crc16(buffer, total_legth);
+
+        // send the packet
+        tcp_client.write(buffer, total_legth);
+
+        // send the crc
+        tcp_client.write((const uint8_t*)&crc, sizeof(crc));
+
+        delete[] buffer;
     }
 
     void send_UDP(PacketHeader header, void* data, uint16_t data_length){
+        // get the total size of the data send
+        size_t total_legth = sizeof(PacketHeader) + data_length;
+        
+        // make a buffer for the data
+        uint8_t* buffer = new uint8_t[total_legth];
+
+        // add data to the buffer
+        memcpy(buffer, &header, sizeof(PacketHeader));
+        memcpy(buffer + sizeof(PacketHeader), data, data_length);
+
+        // calculate the crc
+        uint16_t crc = calculate_crc16(buffer, total_legth);
+
         // start packet to the server
         udp_client.beginPacket(server_ip, SERVER_PORT_UDP);
         
-        // add the header and message
-        udp_client.write((const uint8_t*)&header, sizeof(PacketHeader));
-        udp_client.write((const uint8_t*)data, data_length);
+        // add the packet
+        udp_client.write(buffer, total_legth);
+
+        // add the crc
+        udp_client.write((const uint8_t*)&crc, sizeof(crc));
         
         // send the packet
         udp_client.endPacket();
@@ -226,8 +259,44 @@ void handle_register(ArgValue args[]) {
     EEPROM.commit();
 }
 
-void send_commands(ArgValue args[]){
-    // TODO: implement sending commands
+void send_commands(ArgValue _args[]){
+    // TODO: figure out how to add more things to the commands (like a range for the slider or dropdown options)
+
+    for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++){
+        if (registered_commands[i].id == 65535){
+            break;
+        }
+
+        uint8 name_len = strlen(registered_commands[i].name);
+
+        uint16_t total_size = sizeof(uint8_t) + name_len + sizeof(registered_commands[i].id) + sizeof(registered_commands[i].type);
+        uint8_t* buffer = new uint8_t[total_size];
+
+        uint16_t offset = 0;
+
+        // store the length of the name
+        buffer[offset++] = name_len;
+
+        // copy name to buffer
+        memcpy(buffer + offset, registered_commands[i].name, name_len);
+        offset += name_len;
+
+        // copy ID
+        memcpy(buffer + offset, &registered_commands[i].id, sizeof(registered_commands[i].id));
+        offset += sizeof(registered_commands[i].id);
+
+        // copy type
+        memcpy(buffer + offset, &registered_commands[i].type, sizeof(registered_commands[i].type));
+        offset += sizeof(registered_commands[i].type);
+
+        // build packet header
+        PacketHeader header = BEC_E::build_packet_header(SEND_COMMAND, 0, 1, total_size);
+
+        // send packet
+        BEC_E::send_TCP(header, buffer, total_size);
+
+        delete[] buffer;
+    }
 }
 
 bool connect_wifi(char* ssid, char* password){
@@ -311,4 +380,18 @@ void handleSubmit() {
     server.send(200, "text/html", "Saved. Restarting...");
     delay(1000);
     ESP.restart();
+}
+
+uint16_t calculate_crc16(const uint8_t* data, size_t length) {
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < length; i++) {
+        crc ^= (uint16_t)data[i] << 8;
+        for (uint8_t j = 0; j < 8; j++) {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ 0x1021;
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
 }
