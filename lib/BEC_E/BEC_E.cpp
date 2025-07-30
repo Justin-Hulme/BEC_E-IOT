@@ -3,6 +3,8 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 
 #include <EEPROM.h>
 
@@ -75,7 +77,7 @@ namespace BEC_E {
         // connect to tcp
         if (tcp_client.connect(server_ip, SERVER_PORT_TCP)){
             const char* message = DEVICE_NAME "_" DEVICE_ID " CONNECTED";
-            BEC_E::send_log(message, sizeof(message));
+            BEC_E::send_log(message);
         }
         else {
             // TODO: figure out how to fail gracefully
@@ -140,10 +142,10 @@ namespace BEC_E {
         PacketHeader return_header = {MAGIC, COMMAND_SET, type, packet_id, packet_num, total_packets, payload_len};
     }
 
-    void send_log(const char* message, size_t message_len){
-        PacketHeader header = build_packet_header(LOG_MESSAGE, 0, 1, message_len);
+    void send_log(const char* message){
+        PacketHeader header = build_packet_header(LOG_MESSAGE, 0, 1, strlen(message));
 
-        send_TCP(header, message, message_len);
+        send_TCP(header, message, strlen(message));
     }
 
     void send_TCP(PacketHeader header, const void* data, uint16_t data_length){
@@ -215,7 +217,64 @@ void handle_restart(ArgValue _args[]){
 }
 
 void handle_update(ArgValue _args[]){
-    // TODO: implement handle_update
+    WiFiClient client;
+    HTTPClient http;
+
+    BEC_E::send_log("Checking for updates");
+
+    // set up path for ota version file
+    uint16_t ota_version_path_len = SERVER_IP_SIZE + strlen("/IOT/firmware/") + strlen(DEVICE_NAME) + strlen("/version.txt");
+    char* ota_version_path = new char[ota_version_path_len];
+    snprintf(ota_version_path, sizeof(ota_version_path), "%s/IOT/firmware/%s_version.txt", server_ip, DEVICE_NAME);
+    
+    // set up path for ota firmware file
+    uint16_t ota_firmware_path_len = SERVER_IP_SIZE + strlen("/IOT/firmware/") + strlen(DEVICE_NAME) + strlen("/firmware.txt");
+    char* ota_firmware_path = new char[ota_firmware_path_len];
+    snprintf(ota_firmware_path, sizeof(ota_firmware_path), "%s/IOT/firmware/%s/firmware.txt", server_ip, DEVICE_NAME);
+    
+    // check for update
+    if (http.begin(client, ota_version_path)){
+        int httpCode = http.GET();
+
+        // make sure it was sucessful
+        if (httpCode == 200) {
+            // get the version from the file
+            String new_version = http.getString();
+            new_version.trim();
+
+            // match it to the saved version
+            if (new_version != CURRENT_VERSION){
+                BEC_E::send_log("New version avialable! Starting OTA");
+
+                // start the update
+                t_httpUpdate_return result = ESPhttpUpdate.update(client, ota_firmware_path);
+
+                // handle the result of the update
+                switch (result){
+                    case HTTP_UPDATE_FAILED:
+                        BEC_E::send_log("Update failed");
+                        BEC_E::send_log(ESPhttpUpdate.getLastErrorString().c_str());
+                        break;
+                    case HTTP_UPDATE_NO_UPDATES:
+                        BEC_E::send_log("No updates available");
+                        break;
+                    case HTTP_UPDATE_OK:
+                        BEC_E::send_log("Update successful. Rebooting");
+                        break;
+                }
+            } 
+            else {
+                BEC_E::send_log("Firmware is up-to-date");
+            }
+        }
+        else {
+            BEC_E::send_log("Failed to check update version");
+        }
+
+        // clean up
+        http.end();
+    }
+
 }
 
 void handle_register(ArgValue args[]) {

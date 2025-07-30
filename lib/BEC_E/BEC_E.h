@@ -51,6 +51,10 @@
 #define USE_UDP false
 #endif
 
+#ifndef CURRENT_VERSION
+#define CURRENT_VERSION "0.0.0"
+#endif
+
 #define MAGIC 0xBECE
 #define COMMAND_SET 0 // TODO: implement command_set to clear the magic flag incase you add things to the eeprom
 
@@ -115,7 +119,7 @@ namespace BEC_E {
     void register_command(struct Command); // adds a command to the user commands list
     void register_loop_function(void (*loop_function)(ArgValue*)); // adds a function to the user defined loop functions
     PacketHeader build_packet_header(uint16_t, uint16_t, uint16_t, uint16_t); // builds a packet header removing the need to worry about all fields
-    void send_log(char *, uint16_t); // sends a log message to the server
+    void send_log(const char *); // sends a log message to the server
     void send_TCP(PacketHeader, void*, uint16_t); // sends a packet over TCP
     void send_UDP(PacketHeader, void*, uint16_t); // sends a packet over UDP
     void safe_delay(unsigned long); // delays for the specified time but runs the main loop while waiting
