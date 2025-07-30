@@ -49,6 +49,10 @@
 #define SERVER_PORT_UDP 15001
 #endif
 
+#ifndef TCP_CONNECTION_ATTMEPTS
+#define TCP_CONNECTION_ATTMEPTS 10
+#endif
+
 // ----------- Device Config -----------
 
 #ifndef DEVICE_NAME
@@ -70,9 +74,10 @@
 // ---------- Internal Macros ----------
 
 #define MAGIC 0xBECE
-#define COMMAND_SET 0 // TODO: implement command_set to clear the magic flag incase you add things to the eeprom
+#define COMMAND_SET 0
 
 #define EEPROM_MAGIC 0x42
+#define EEPROM_VERSION 0
 
 // struct for recieving RGB colors
 struct Color {

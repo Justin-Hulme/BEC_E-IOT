@@ -30,7 +30,9 @@ Command registered_commands [MAX_REGISTERED_COMMAND_NUM] = {nullptr, 65535, HIDD
 // array of loop functions defaulting to a null function
 void (*loop_functions[MAX_LOOP_FUNCTION_NUM])() = {nullptr};
 
-// give everything access to the server ip
+// give everything access to the server ip, ssid, and password
+char ssid[SSID_SIZE];
+char password[WIFI_PASSWORD_SIZE];
 char server_ip[SERVER_IP_SIZE];
 
 // communication conrollers
@@ -43,6 +45,7 @@ bool connect_wifi(char*, char*);
 void run_AP();
 void save_credentials(const char*, const char*, const char*);
 uint16_t calculate_crc16(const uint8_t* data, size_t length);
+void clear_EEPROM();
 
 namespace BEC_E {
     void main_setup(){
@@ -54,23 +57,30 @@ namespace BEC_E {
             run_AP();
         }
 
-        // set up buffers for ssid, and password
-        char ssid[SSID_SIZE];
-        char password[WIFI_PASSWORD_SIZE];
+        // clear the EEPROM if there is a new EEPROM version we have to follow
+        if (EEPROM.read(1) != EEPROM_VERSION){
+            clear_EEPROM();
+
+            // record the new EEPROM version
+            EEPROM.write(1, EEPROM_VERSION);
+
+            // resetup wifi
+            run_AP();
+        }
 
         // read in the ssid
         for (int i = 0; i < SSID_SIZE; i++){
-            ssid[i] = EEPROM.read(1 + i);
+            ssid[i] = EEPROM.read(2 + i);
         }
 
         // read in the password
         for (int i = 0; i < WIFI_PASSWORD_SIZE; i++){
-            password[i] = EEPROM.read(1 + SSID_SIZE + i);
+            password[i] = EEPROM.read(2 + SSID_SIZE + i);
         }
 
         // read in the server ip
         for (int i = 0; i < SERVER_IP_SIZE; i++){
-            server_ip[i] = EEPROM.read(1 + SSID_SIZE + WIFI_PASSWORD_SIZE + i);
+            server_ip[i] = EEPROM.read(2 + SSID_SIZE + WIFI_PASSWORD_SIZE + i);
         }
 
         // try to connect to wifi and set up AP if the saved values fail
@@ -78,14 +88,20 @@ namespace BEC_E {
             run_AP();
         }
 
-        // connect to tcp
-        if (tcp_client.connect(server_ip, SERVER_PORT_TCP)){
-            const char* message = DEVICE_NAME "_" DEVICE_ID " CONNECTED";
-            BEC_E::send_log(message);
+        int attempts = 0;
+
+        // attempt to connect to TCP
+        while (!tcp_client.connect(server_ip, SERVER_PORT_TCP)){
+            attempts ++;
+            delay(1000);
+
+            // if we try and connect too many time then run the ap again incase the ip was wrong
+            if (attempts >= TCP_CONNECTION_ATTMEPTS){
+                run_AP();
+            }
         }
-        else {
-            // TODO: figure out how to fail gracefully
-        }
+
+        BEC_E::send_log(DEVICE_NAME "_" DEVICE_ID " CONNECTED");
 
         // connect to udp
         if (USE_UDP){
@@ -222,7 +238,7 @@ namespace BEC_E {
             main_loop();
         }
     }
-}
+} // BEC_E namespace
 
 void handle_restart(ArgValue _args[]){
     ESP.restart();
@@ -387,11 +403,27 @@ void send_single_command(const Command& cmd) {
 }
 
 void handle_send_name(ArgValue *){
-    // TODO: implement handle_send_name
+    char* name = DEVICE_NAME "_" DEVICE_ID;
+
+    // build the header
+    PacketHeader header = BEC_E::build_packet_header(SEND_NAME, 0, 1, strlen(name));
+    
+    // send the packet
+    BEC_E::send_TCP(header, name);
 }
 
 void handle_factory_reset(ArgValue *){
-    // TODO: implement handle_factory_reset
+    clear_EEPROM();
+
+    ESP.restart();
+}
+
+void clear_EEPROM(){
+    for (int i = 0; i < EEPROM.length(); i++) {
+        EEPROM.write(i, 0xFF);
+    }
+
+    EEPROM.commit();
 }
 
 bool connect_wifi(char* ssid, char* password){
@@ -441,14 +473,23 @@ void run_AP(){
 }
 
 void handleRoot() {
-    server.send(200, "text/html",
-        "<form action=\"/submit\" method=\"POST\">"
-        "SSID: <input name=\"ssid\" length=32><br>"
-        "Password: <input name=\"pass\" length=64><br>"
-        "Server IP: <input name=\"server_ip\" length=16><br>"
-        "<input type=\"submit\">"
-        "</form>"
-    );
+    // Assume you have these defined somewhere
+    String html = "<form action=\"/submit\" method=\"POST\">";
+    html += "SSID: <input name=\"ssid\" length=" + String(SSID_SIZE - 1) + " value=\"";
+    html += ssid;
+    html += "\"><br>";
+
+    html += "Password: <input name=\"pass\" length=" + String(WIFI_PASSWORD_SIZE - 1) + " value=\"";
+    html += password;
+    html += "\"><br>";
+
+    html += "Server IP: <input name=\"server_ip\" length=" + String(SERVER_IP_SIZE - 1) + " value=\"";
+    html += server_ip;
+    html += "\"><br>";
+
+    html += "<input type=\"submit\"></form>";
+
+    server.send(200, "text/html", html);
 }
 
 void handleSubmit() {
@@ -482,17 +523,17 @@ void save_credentials(const char* ssid, const char* password, const char* server
 
     // Write SSID
     for (int i = 0; i < SSID_SIZE; i++){
-        EEPROM.write(1 + i, ssid[i]);
+        EEPROM.write(2 + i, ssid[i]);
     }
 
     // Write password
     for (int i = 0; i < WIFI_PASSWORD_SIZE; i++){
-        EEPROM.write(1 + SSID_SIZE + i, password[i]);
+        EEPROM.write(2 + SSID_SIZE + i, password[i]);
     }
 
     // Write server IP
     for (int i = 0; i < SERVER_IP_SIZE; i++){
-        EEPROM.write(1 + SSID_SIZE + WIFI_PASSWORD_SIZE + i, server_address[i]);
+        EEPROM.write(2 + SSID_SIZE + WIFI_PASSWORD_SIZE + i, server_address[i]);
     }
 
     EEPROM.commit();
