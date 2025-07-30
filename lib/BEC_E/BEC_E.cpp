@@ -11,15 +11,17 @@
 // function prototypes for build in commands
 void handle_restart(ArgValue *);
 void handle_update(ArgValue *);
-void handle_register(ArgValue *);
-void send_commands(ArgValue *);
+void handle_send_commands(ArgValue *);
+void handle_send_name(ArgValue *);
+void handle_factory_reset(ArgValue *);
 
 // array of built in commands
 Command built_in_commands[] = {
     {"Restart",       65534, VOID_C, handle_restart},
     {"Update",        65533, VOID_C, handle_update},
-    {"Register",      65532, VOID_C, handle_register},
-    {"Send Commands", 65531, VOID_C, send_commands}
+    {"Send Commands", 65532, VOID_C, handle_send_commands},
+    {"Send Name",     65531, VOID_C, handle_send_name},
+    {"Factory Reset", 65530, VOID_C, handle_factory_reset},
 };
 
 // array of registered commands defaulting to a null command
@@ -38,6 +40,7 @@ WiFiUDP udp_client;
 // function prototypes for internal functions
 bool connect_wifi(char*, char*);
 void run_AP();
+void save_credentials(const char*, const char*, const char*);
 uint16_t calculate_crc16(const uint8_t* data, size_t length);
 
 namespace BEC_E {
@@ -277,48 +280,7 @@ void handle_update(ArgValue _args[]){
 
 }
 
-void handle_register(ArgValue args[]) {
-    // define buffers
-    char ssid[SSID_SIZE];
-    char password[WIFI_PASSWORD_SIZE];
-    char server_address[SERVER_IP_SIZE];
-
-    // extract ssid from args
-    strncpy(ssid, args[0].str_val, sizeof(ssid));
-    ssid[sizeof(ssid)-1] = '\0';
-
-    // extract password from args
-    strncpy(password, args[1].str_val, sizeof(password));
-    password[sizeof(password)-1] = '\0';
-
-    // extract server ip from args
-    strncpy(server_address, args[2].str_val, sizeof(server_address));
-    server_address[sizeof(server_address)-1] = '\0';
-
-    // mark that the eeprom has been read
-    if (EEPROM.read(0) != EEPROM_MAGIC){
-        EEPROM.write(0, EEPROM_MAGIC);
-    }
-
-    // write ssid to eeprom
-    for (int i = 0; i < SSID_SIZE; i++){
-        EEPROM.write(1 + i, ssid[i]);
-    }
-
-    // write passwrod to flash
-    for (int i = 0; i < WIFI_PASSWORD_SIZE; i++){
-        EEPROM.write(1 + SSID_SIZE + i, password[i]);
-    }
-
-    // write server ip to flash
-    for (int i = 0; i < SERVER_IP_SIZE; i++){
-        EEPROM.write(1 + SSID_SIZE + WIFI_PASSWORD_SIZE + i, server_address[i]);
-    }
-
-    EEPROM.commit();
-}
-
-void send_commands(ArgValue _args[]){
+void handle_send_commands(ArgValue _args[]){
     // TODO: figure out how to add more things to the commands (like a range for the slider or dropdown options)
 
     for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++){
@@ -356,6 +318,14 @@ void send_commands(ArgValue _args[]){
 
         delete[] buffer;
     }
+}
+
+void handle_send_name(ArgValue *){
+    // TODO: implement handle_send_name
+}
+
+void handle_factory_reset(ArgValue *){
+    // TODO: implement handle_factory_reset
 }
 
 bool connect_wifi(char* ssid, char* password){
@@ -409,36 +379,57 @@ void handleRoot() {
         "<form action=\"/submit\" method=\"POST\">"
         "SSID: <input name=\"ssid\" length=32><br>"
         "Password: <input name=\"pass\" length=64><br>"
+        "Server IP: <input name=\"server_ip\" length=16><br>"
         "<input type=\"submit\">"
         "</form>"
     );
 }
 
 void handleSubmit() {
-    // Define temporary C-style buffers
     char ssid[SSID_SIZE];
     char pass[WIFI_PASSWORD_SIZE];
+    char ip[SERVER_IP_SIZE];
 
-    // Copy values from HTTP request
+    // copy the ssid
     strncpy(ssid, server.arg("ssid").c_str(), SSID_SIZE);
-    ssid[SSID_SIZE - 1] = '\0';  // Ensure null termination
+    ssid[SSID_SIZE - 1] = '\0';
 
+    // copy password
     strncpy(pass, server.arg("pass").c_str(), WIFI_PASSWORD_SIZE);
-    pass[WIFI_PASSWORD_SIZE - 1] = '\0';  // Ensure null termination
+    pass[WIFI_PASSWORD_SIZE - 1] = '\0';
 
-    // Prepare ArgValue array
-    ArgValue args[3];
-    args[0].str_val = ssid;
-    args[1].str_val = pass;
-    args[2].str_val = server_ip;  // global IP already available
+    // copy servr ip
+    strncpy(ip, server.arg("server_ip").c_str(), SERVER_IP_SIZE);
+    ip[SERVER_IP_SIZE - 1] = '\0';
 
-    // Store the data
-    handle_register(args);
+    save_credentials(ssid, pass, ip);
 
-    // Respond and reboot
     server.send(200, "text/html", "Saved. Restarting...");
     delay(1000);
     ESP.restart();
+}
+
+void save_credentials(const char* ssid, const char* password, const char* server_address) {
+    if (EEPROM.read(0) != EEPROM_MAGIC){
+        EEPROM.write(0, EEPROM_MAGIC);
+    }
+
+    // Write SSID
+    for (int i = 0; i < SSID_SIZE; i++){
+        EEPROM.write(1 + i, ssid[i]);
+    }
+
+    // Write password
+    for (int i = 0; i < WIFI_PASSWORD_SIZE; i++){
+        EEPROM.write(1 + SSID_SIZE + i, password[i]);
+    }
+
+    // Write server IP
+    for (int i = 0; i < SERVER_IP_SIZE; i++){
+        EEPROM.write(1 + SSID_SIZE + WIFI_PASSWORD_SIZE + i, server_address[i]);
+    }
+
+    EEPROM.commit();
 }
 
 uint16_t calculate_crc16(const uint8_t* data, size_t length) {

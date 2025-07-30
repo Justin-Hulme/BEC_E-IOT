@@ -90,7 +90,8 @@ enum command_type {
 // enum for the types of messages used by built in functions
 enum default_message_type : uint16_t {
     LOG_MESSAGE = 65535,
-    SEND_COMMAND = 65534
+    SEND_COMMAND = 65534,
+    SEND_NAME = 65533,
 };
 
 // struct for commands
