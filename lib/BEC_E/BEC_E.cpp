@@ -475,15 +475,15 @@ void run_AP(){
 void handleRoot() {
     // Assume you have these defined somewhere
     String html = "<form action=\"/submit\" method=\"POST\">";
-    html += "SSID: <input name=\"ssid\" length=" + String(SSID_SIZE - 1) + " value=\"";
+    html += "SSID: <input name=\"ssid\" maxlength=" + String(SSID_SIZE - 1) + " value=\"";
     html += ssid;
     html += "\"><br>";
 
-    html += "Password: <input name=\"pass\" length=" + String(WIFI_PASSWORD_SIZE - 1) + " value=\"";
+    html += "Password: <input type=\"password\" name=\"pass\" maxlength=" + String(WIFI_PASSWORD_SIZE - 1) + " value=\"";
     html += password;
     html += "\"><br>";
 
-    html += "Server IP: <input name=\"server_ip\" length=" + String(SERVER_IP_SIZE - 1) + " value=\"";
+    html += "Server IP: <input name=\"server_ip\" maxlength=" + String(SERVER_IP_SIZE - 1) + " value=\"";
     html += server_ip;
     html += "\"><br>";
 
