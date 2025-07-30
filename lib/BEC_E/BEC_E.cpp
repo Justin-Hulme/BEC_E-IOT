@@ -17,15 +17,15 @@ void handle_factory_reset(ArgValue *);
 
 // array of built in commands
 Command built_in_commands[] = {
-    {"Restart",       65534, VOID_C, handle_restart},
-    {"Update",        65533, VOID_C, handle_update},
-    {"Send Commands", 65532, VOID_C, handle_send_commands},
-    {"Send Name",     65531, VOID_C, handle_send_name},
-    {"Factory Reset", 65530, VOID_C, handle_factory_reset},
+    {"Restart",       65534, STRONG_BUTTON, handle_restart},
+    {"Update",        65533, STRONG_BUTTON, handle_update},
+    {"Send Commands", 65532, HIDDEN,        handle_send_commands},
+    {"Send Name",     65531, HIDDEN,        handle_send_name},
+    {"Factory Reset", 65530, STRONG_BUTTON, handle_factory_reset},
 };
 
 // array of registered commands defaulting to a null command
-Command registered_commands [MAX_REGISTERED_COMMAND_NUM] = {nullptr, 65535, VOID_C, nullptr};
+Command registered_commands [MAX_REGISTERED_COMMAND_NUM] = {nullptr, 65535, HIDDEN, nullptr};
 
 // array of loop functions defaulting to a null function
 void (*loop_functions[MAX_LOOP_FUNCTION_NUM])() = {nullptr};
@@ -282,7 +282,7 @@ void handle_update(ArgValue _args[]){
 
 void handle_send_commands(ArgValue _args[]){
     // TODO: figure out how to add more things to the commands (like a range for the slider or dropdown options)
-
+    // send added commands
     for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++){
         if (registered_commands[i].id == 65535){
             break;
@@ -309,6 +309,39 @@ void handle_send_commands(ArgValue _args[]){
         // copy type
         memcpy(buffer + offset, &registered_commands[i].type, sizeof(registered_commands[i].type));
         offset += sizeof(registered_commands[i].type);
+
+        // build packet header
+        PacketHeader header = BEC_E::build_packet_header(SEND_COMMAND, 0, 1, total_size);
+
+        // send packet
+        BEC_E::send_TCP(header, buffer, total_size);
+
+        delete[] buffer;
+    }
+
+    // send built in commands
+    for (int i = 0; i < sizeof(built_in_commands); i++){
+        uint8 name_len = strlen(built_in_commands[i].name);
+
+        uint16_t total_size = sizeof(uint8_t) + name_len + sizeof(built_in_commands[i].id) + sizeof(built_in_commands[i].type);
+        uint8_t* buffer = new uint8_t[total_size];
+
+        uint16_t offset = 0;
+
+        // store the length of the name
+        buffer[offset++] = name_len;
+
+        // copy name to buffer
+        memcpy(buffer + offset, built_in_commands[i].name, name_len);
+        offset += name_len;
+
+        // copy ID
+        memcpy(buffer + offset, &built_in_commands[i].id, sizeof(built_in_commands[i].id));
+        offset += sizeof(built_in_commands[i].id);
+
+        // copy type
+        memcpy(buffer + offset, &built_in_commands[i].type, sizeof(built_in_commands[i].type));
+        offset += sizeof(built_in_commands[i].type);
 
         // build packet header
         PacketHeader header = BEC_E::build_packet_header(SEND_COMMAND, 0, 1, total_size);

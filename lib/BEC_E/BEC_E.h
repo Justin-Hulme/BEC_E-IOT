@@ -3,6 +3,8 @@
 #ifndef BEC_E_H
 #define BEC_E_H
 
+// ----------- Buffer Config -----------
+
 #ifndef ARG_BUFFER_SIZE
 #define ARG_BUFFER_SIZE 10
 #endif
@@ -14,6 +16,8 @@
 #ifndef MAX_LOOP_FUNCTION_NUM
 #define MAX_LOOP_FUNCTION_NUM 10
 #endif
+
+// ------------ WIFI Config ------------
 
 #ifndef WIFI_TIMEOUT_SECONDS
 #define WIFI_TIMEOUT_SECONDS 5
@@ -27,6 +31,8 @@
 #define WIFI_PASSWORD_SIZE 33
 #endif
 
+// ----------- Server Config -----------
+
 #ifndef SERVER_IP_SIZE
 #define SERVER_IP_SIZE 16
 #endif
@@ -38,6 +44,8 @@
 #ifndef SERVER_PORT_UDP
 #define SERVER_PORT_UDP 15001
 #endif
+
+// ----------- Device Config -----------
 
 #ifndef DEVICE_NAME
 #define DEVICE_NAME "default"
@@ -54,6 +62,8 @@
 #ifndef CURRENT_VERSION
 #define CURRENT_VERSION "0.0.0"
 #endif
+
+// ---------- Internal Macros ----------
 
 #define MAGIC 0xBECE
 #define COMMAND_SET 0 // TODO: implement command_set to clear the magic flag incase you add things to the eeprom
@@ -79,12 +89,14 @@ union ArgValue {
 
 // enum for the different types of commands
 enum command_type {
-    VOID_C = 0,     // no data passed. Shown as a push button
-    BOOLEAN_C = 1,  // passes in true or false. Shown as a switch
-    SCALE_C = 2,    // passes in an int within the range. Shown as a slider
-    COLOR_C = 3,    // passes in a color struct. Shown as a color picker
-    DROPDOWN_C = 4, // passes in an int with a specific value. Shown as a dropdown
-    STRING_C = 5    // passes in a string. Shown as a single line input
+    BUTTON = 0,        // no data passed. Shown as a button
+    SWITCH = 1,        // passes in true or false. Shown as a switch
+    SCALE = 2,         // passes in an int within the range. Shown as a slider
+    COLOR = 3,         // passes in a color struct. Shown as a color picker
+    DROPDOWN = 4,      // passes in an int with a specific value. Shown as a dropdown
+    STRING = 5,        // passes in a string. Shown as a single line input
+    HIDDEN = 6,        // no data passed. Not shown
+    STRONG_BUTTON = 7, // no data passed. Shown as a button but requires a confirmation
 };
 
 // enum for the types of messages used by built in functions
