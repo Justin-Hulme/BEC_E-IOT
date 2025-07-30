@@ -91,7 +91,13 @@ namespace BEC_E {
         if (USE_UDP){
             udp_client.begin(SERVER_PORT_UDP);
 
-            // TODO: come up with some way of telling the server the device is using udp
+            uint16_t port = SERVER_PORT_UDP;
+
+            // build the header
+            PacketHeader header = build_packet_header(ESTABLISH_UDP, 0, 1, sizeof(port));
+            
+            // tell the server to start listening to UDP
+            send_TCP(header, &port);
         }
     }
 
@@ -147,26 +153,28 @@ namespace BEC_E {
     }
 
     void send_log(const char* message){
+        // build the header
         PacketHeader header = build_packet_header(LOG_MESSAGE, 0, 1, strlen(message));
-
-        send_TCP(header, message, strlen(message));
+        
+        // send the packet
+        send_TCP(header, message);
     }
 
-    void send_TCP(PacketHeader header, const void* data, uint16_t data_length){
+    void send_TCP(PacketHeader header, const void* data){
         // make sure the server is still connected
         if (!tcp_client.connected()){
             tcp_client.connect(server_ip, SERVER_PORT_TCP);
         }
 
         // get the total size of the data send
-        size_t total_legth = sizeof(PacketHeader) + data_length;
+        size_t total_legth = sizeof(PacketHeader) + header.payload_len;
         
         // make a buffer for the data
         uint8_t* buffer = new uint8_t[total_legth];
 
         // add data to the buffer
         memcpy(buffer, &header, sizeof(PacketHeader));
-        memcpy(buffer + sizeof(PacketHeader), data, data_length);
+        memcpy(buffer + sizeof(PacketHeader), data, header.payload_len);
 
         // calculate the crc
         uint16_t crc = calculate_crc16(buffer, total_legth);
@@ -180,16 +188,16 @@ namespace BEC_E {
         delete[] buffer;
     }
 
-    void send_UDP(PacketHeader header, void* data, uint16_t data_length){
+    void send_UDP(PacketHeader header, void* data){
         // get the total size of the data send
-        size_t total_legth = sizeof(PacketHeader) + data_length;
+        size_t total_legth = sizeof(PacketHeader) + header.payload_len;
         
         // make a buffer for the data
         uint8_t* buffer = new uint8_t[total_legth];
 
         // add data to the buffer
         memcpy(buffer, &header, sizeof(PacketHeader));
-        memcpy(buffer + sizeof(PacketHeader), data, data_length);
+        memcpy(buffer + sizeof(PacketHeader), data, header.payload_len);
 
         // calculate the crc
         uint16_t crc = calculate_crc16(buffer, total_legth);
@@ -373,7 +381,7 @@ void send_single_command(const Command& cmd) {
     }
 
     PacketHeader header = BEC_E::build_packet_header(SEND_COMMAND, 0, 1, total_size);
-    BEC_E::send_TCP(header, buffer, total_size);
+    BEC_E::send_TCP(header, buffer);
 
     delete[] buffer;
 }
