@@ -17,15 +17,15 @@ void handle_factory_reset(ArgValue *);
 
 // array of built in commands
 Command built_in_commands[] = {
-    {"Restart",       65534, STRONG_BUTTON, handle_restart},
-    {"Update",        65533, STRONG_BUTTON, handle_update},
-    {"Send Commands", 65532, HIDDEN,        handle_send_commands},
-    {"Send Name",     65531, HIDDEN,        handle_send_name},
-    {"Factory Reset", 65530, STRONG_BUTTON, handle_factory_reset},
+    {"Restart",       65534, STRONG_BUTTON, nullptr, 0, handle_restart},
+    {"Update",        65533, STRONG_BUTTON, nullptr, 0, handle_update},
+    {"Send Commands", 65532, HIDDEN,        nullptr, 0, handle_send_commands},
+    {"Send Name",     65531, HIDDEN,        nullptr, 0, handle_send_name},
+    {"Factory Reset", 65530, STRONG_BUTTON, nullptr, 0, handle_factory_reset},
 };
 
 // array of registered commands defaulting to a null command
-Command registered_commands [MAX_REGISTERED_COMMAND_NUM] = {nullptr, 65535, HIDDEN, nullptr};
+Command registered_commands [MAX_REGISTERED_COMMAND_NUM] = {nullptr, 65535, HIDDEN, nullptr, 0, nullptr};
 
 // array of loop functions defaulting to a null function
 void (*loop_functions[MAX_LOOP_FUNCTION_NUM])() = {nullptr};
@@ -38,6 +38,7 @@ WiFiClient tcp_client;
 WiFiUDP udp_client;
 
 // function prototypes for internal functions
+void send_single_command(const Command&);
 bool connect_wifi(char*, char*);
 void run_AP();
 void save_credentials(const char*, const char*, const char*);
@@ -257,13 +258,13 @@ void handle_update(ArgValue _args[]){
                     case HTTP_UPDATE_FAILED:
                         BEC_E::send_log("Update failed");
                         BEC_E::send_log(ESPhttpUpdate.getLastErrorString().c_str());
-                        break;
+                    break;
                     case HTTP_UPDATE_NO_UPDATES:
                         BEC_E::send_log("No updates available");
-                        break;
+                    break;
                     case HTTP_UPDATE_OK:
                         BEC_E::send_log("Update successful. Rebooting");
-                        break;
+                    break;
                 }
             } 
             else {
@@ -280,77 +281,101 @@ void handle_update(ArgValue _args[]){
 
 }
 
-void handle_send_commands(ArgValue _args[]){
-    // TODO: figure out how to add more things to the commands (like a range for the slider or dropdown options)
-    // send added commands
-    for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++){
-        if (registered_commands[i].id == 65535){
-            break;
-        }
-
-        uint8 name_len = strlen(registered_commands[i].name);
-
-        uint16_t total_size = sizeof(uint8_t) + name_len + sizeof(registered_commands[i].id) + sizeof(registered_commands[i].type);
-        uint8_t* buffer = new uint8_t[total_size];
-
-        uint16_t offset = 0;
-
-        // store the length of the name
-        buffer[offset++] = name_len;
-
-        // copy name to buffer
-        memcpy(buffer + offset, registered_commands[i].name, name_len);
-        offset += name_len;
-
-        // copy ID
-        memcpy(buffer + offset, &registered_commands[i].id, sizeof(registered_commands[i].id));
-        offset += sizeof(registered_commands[i].id);
-
-        // copy type
-        memcpy(buffer + offset, &registered_commands[i].type, sizeof(registered_commands[i].type));
-        offset += sizeof(registered_commands[i].type);
-
-        // build packet header
-        PacketHeader header = BEC_E::build_packet_header(SEND_COMMAND, 0, 1, total_size);
-
-        // send packet
-        BEC_E::send_TCP(header, buffer, total_size);
-
-        delete[] buffer;
+void handle_send_commands(ArgValue _args[]) {
+    for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++) {
+        if (registered_commands[i].id == 65535) break;
+        send_single_command(registered_commands[i]);
     }
 
-    // send built in commands
-    for (int i = 0; i < sizeof(built_in_commands); i++){
-        uint8 name_len = strlen(built_in_commands[i].name);
-
-        uint16_t total_size = sizeof(uint8_t) + name_len + sizeof(built_in_commands[i].id) + sizeof(built_in_commands[i].type);
-        uint8_t* buffer = new uint8_t[total_size];
-
-        uint16_t offset = 0;
-
-        // store the length of the name
-        buffer[offset++] = name_len;
-
-        // copy name to buffer
-        memcpy(buffer + offset, built_in_commands[i].name, name_len);
-        offset += name_len;
-
-        // copy ID
-        memcpy(buffer + offset, &built_in_commands[i].id, sizeof(built_in_commands[i].id));
-        offset += sizeof(built_in_commands[i].id);
-
-        // copy type
-        memcpy(buffer + offset, &built_in_commands[i].type, sizeof(built_in_commands[i].type));
-        offset += sizeof(built_in_commands[i].type);
-
-        // build packet header
-        PacketHeader header = BEC_E::build_packet_header(SEND_COMMAND, 0, 1, total_size);
-
-        // send packet
-        BEC_E::send_TCP(header, buffer, total_size);
-
-        delete[] buffer;
+    size_t built_in_count = sizeof(built_in_commands) / sizeof(built_in_commands[0]);
+    for (size_t i = 0; i < built_in_count; i++) {
+        send_single_command(built_in_commands[i]);
     }
+}
+
+void send_single_command(const Command& cmd) {
+    // get the normal size
+    uint8_t name_len = strlen(cmd.name);
+    uint16_t total_size = sizeof(uint8_t) + name_len + sizeof(cmd.id) + sizeof(cmd.type);
+
+    // handle additional arguments
+    switch (cmd.type){
+        case SLIDER:
+            // make sure it has the right numnber of arguments
+            if (cmd.additional_arg_num != 2){
+                BEC_E::send_log("Wrong number of args for slider");
+                return;
+            }
+            
+            // add the size of the 2 arguments
+            total_size += 2 * sizeof(ArgValue().uint_val);
+        break;
+        case DROPDOWN:
+            // make sure it has the right numnber of arguments
+            if (cmd.additional_arg_num < 1){
+                BEC_E::send_log("not enough args for dropdown");
+                return;
+            }
+
+            // add enough space for all of the arguments
+            for (int i = 0; i < cmd.additional_arg_num; i++){
+                total_size += sizeof(uint8); //for the string len
+                total_size += strlen(cmd.additional_args[i].str_val);
+            }
+        break;
+    }
+
+    // set up the buffer
+    uint8_t* buffer = new uint8_t[total_size];
+    uint16_t offset = 0;
+    
+    // add the length of the name
+    memcpy(buffer + offset, &name_len, sizeof(name_len));
+    offset += sizeof(name_len);
+
+    // add the name
+    memcpy(buffer + offset, cmd.name, name_len);
+    offset += name_len;
+
+    // add the id
+    memcpy(buffer + offset, &cmd.id, sizeof(cmd.id));
+    offset += sizeof(cmd.id);
+
+    // add the command type
+    memcpy(buffer + offset, &cmd.type, sizeof(cmd.type));
+    offset += sizeof(cmd.type);
+
+    // handle additional arguments
+    switch (cmd.type){
+        case SLIDER:
+            // add the starting value
+            memcpy(buffer + offset, &cmd.additional_args[0].int_val, sizeof(ArgValue().int_val));
+            offset += sizeof(ArgValue().int_val);
+            
+            // add the ending value
+            memcpy(buffer + offset, &cmd.additional_args[1].int_val, sizeof(ArgValue().int_val));
+            offset += sizeof(ArgValue().int_val);
+        break;
+        case DROPDOWN:
+            for (int i = 0; i < cmd.additional_arg_num; i++){
+                // get the legnth of the string
+                uint8_t str_len = strlen(cmd.additional_args[i].str_val);
+
+                // add string length to the buffer
+                memcpy(buffer + offset, &str_len, sizeof(uint8_t));
+                offset += sizeof(uint8_t);
+
+                // add the string to the buffer
+                memcpy(buffer + offset, cmd.additional_args[i].str_val, sizeof(ArgValue().str_val));
+                offset += sizeof(ArgValue().str_val);
+            }
+        break;
+    }
+
+    PacketHeader header = BEC_E::build_packet_header(SEND_COMMAND, 0, 1, total_size);
+    BEC_E::send_TCP(header, buffer, total_size);
+
+    delete[] buffer;
 }
 
 void handle_send_name(ArgValue *){

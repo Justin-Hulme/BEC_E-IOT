@@ -17,6 +17,10 @@
 #define MAX_LOOP_FUNCTION_NUM 10
 #endif
 
+#ifndef MAX_COMMAND_ADDITIONAL_ARGS
+#define MAX_COMMAND_ADDITIONAL_ARGS 5
+#endif
+
 // ------------ WIFI Config ------------
 
 #ifndef WIFI_TIMEOUT_SECONDS
@@ -91,9 +95,9 @@ union ArgValue {
 enum command_type {
     BUTTON = 0,        // no data passed. Shown as a button
     SWITCH = 1,        // passes in true or false. Shown as a switch
-    SCALE = 2,         // passes in an int within the range. Shown as a slider
+    SLIDER = 2,        // passes in an int within the range. Shown as a slider. Must add 2 int args to the command
     COLOR = 3,         // passes in a color struct. Shown as a color picker
-    DROPDOWN = 4,      // passes in an int with a specific value. Shown as a dropdown
+    DROPDOWN = 4,      // passes in an int with a specific value. Shown as a dropdown Must add at least 1 char* arg to the command
     STRING = 5,        // passes in a string. Shown as a single line input
     HIDDEN = 6,        // no data passed. Not shown
     STRONG_BUTTON = 7, // no data passed. Shown as a button but requires a confirmation
@@ -111,6 +115,8 @@ struct Command {
     const char* name;                   // the display name
     uint16_t id;                        // the unique ID. Will be sent by server to call function
     command_type type;                  // the type of command, used to determine what is shown on the webpage
+    ArgValue* additional_args;          // additional arguments to be passed to the server
+    uint8_t additional_arg_num;         // the number of additional arguments
     void (*recieve_command)(ArgValue*); // the function to be called with the responce
 } __attribute__((packed));
 
