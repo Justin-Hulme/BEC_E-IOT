@@ -89,18 +89,37 @@ struct Color {
 // union that allows for arrays of any type
 union ArgValue {
     bool        bool_val;
-    int         int_val;
-    uint16      uint_val;
+    int8_t      int8_val;
+    int16_t     int16_val;
+    int32_t     int32_val;
+    uint8       uint8_val;
+    uint16      uint16_val;
+    uint32      uint32_val;
     float       float_val;
     Color       color_val;
     const char* str_val;
 };
 
+namespace Argument{
+    enum arg_type : uint8_t{
+        BOOL    = 0,
+        INT8    = 1,
+        INT16   = 2,
+        INT32   = 3,
+        UINT8   = 4,
+        UINT16  = 5,
+        UINT32  = 6,
+        FLOAT   = 7,
+        COLOR   = 8,
+        STRING  = 9
+    };
+}
+
 // enum for the different types of commands
 enum command_type {
     BUTTON = 0,        // no data passed. Shown as a button
     SWITCH = 1,        // passes in true or false. Shown as a switch
-    SLIDER = 2,        // passes in an int within the range. Shown as a slider. Must add 2 int args to the command
+    SLIDER_UINT8 = 2,        // passes in an int within the range. Shown as a SLIDER_UINT8. Must add 2 int args to the command
     COLOR = 3,         // passes in a color struct. Shown as a color picker
     DROPDOWN = 4,      // passes in an int with a specific value. Shown as a dropdown Must add at least 1 char* arg to the command
     STRING = 5,        // passes in a string. Shown as a single line input
@@ -114,6 +133,7 @@ enum default_message_type : uint16_t {
     SEND_COMMAND    = 65534,
     SEND_NAME       = 65533,
     ESTABLISH_UDP   = 65532,
+    RESEND          = 65531,
 };
 
 // struct for commands
@@ -123,18 +143,19 @@ struct Command {
     command_type type;                  // the type of command, used to determine what is shown on the webpage
     ArgValue* additional_args;          // additional arguments to be passed to the server
     uint8_t additional_arg_num;         // the number of additional arguments
-    void (*recieve_command)(ArgValue*); // the function to be called with the responce
+    void (*recieve_command_function)(ArgValue*, uint8); // the function to be called with the responce
 } __attribute__((packed));
 
 // struct for packet headers. Packed so that it can easily be sent
 struct PacketHeader {
-    uint16_t magic;         // the magic bytes indicating it is a valid packet
-    uint8 command_set;      // idicates what command set it is operating with, not currently used
-    uint16_t type;          // the type of packet. Indicates what function gets called on the  server
-    uint32 packet_id;       // unique id of the packet, used to get rid of duplicates
-    uint16_t packet_num;    // the packet number. 0 for a single packet message
-    uint16_t total_packets; // the total number of packets in the message. 1 for a single packet message
-    uint16_t payload_len;   // the length of the packet payload
+    uint16_t magic;           // the magic bytes indicating it is a valid packet
+    uint8 command_set;        // idicates what command set it is operating with, not currently used
+    uint16_t type;            // the type of packet. Indicates what function gets called on the  server
+    uint32 packet_id;         // unique id of the packet, used to get rid of duplicates
+    uint16_t packet_num;      // the packet number. 0 for a single packet message
+    uint16_t total_packets;   // the total number of packets in the message. 1 for a single packet message
+    uint16_t payload_len;     // the length of the packet payload
+    uint8_t argument_number;  // the number of arguments in the payload
 } __attribute__((packed)); 
 
 // functions that should be available to users of the library
@@ -143,7 +164,7 @@ namespace BEC_E {
     void main_loop(); // manages the server and runs the user defined loop functions
     void register_command(struct Command); // adds a command to the user commands list
     void register_loop_function(void (*loop_function)(ArgValue*)); // adds a function to the user defined loop functions
-    PacketHeader build_packet_header(uint16_t, uint16_t, uint16_t, uint16_t); // builds a packet header removing the need to worry about all fields
+    PacketHeader build_packet_header(uint16_t, uint16_t, uint16_t, uint16_t, uint8_t); // builds a packet header removing the need to worry about all fields
     void send_log(const char *); // sends a log message to the server
     void send_TCP(PacketHeader, void*); // sends a packet over TCP
     void send_UDP(PacketHeader, void*); // sends a packet over UDP
