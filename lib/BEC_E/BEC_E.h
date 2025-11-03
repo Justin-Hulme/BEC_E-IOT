@@ -49,8 +49,8 @@
 #define SERVER_PORT_UDP 15001
 #endif
 
-#ifndef TCP_CONNECTION_ATTMEPTS
-#define TCP_CONNECTION_ATTMEPTS 10
+#ifndef TCP_CONNECTION_ATTEMPTS
+#define TCP_CONNECTION_ATTEMPTS 10
 #endif
 
 // ----------- Device Config -----------
@@ -79,7 +79,7 @@
 #define EEPROM_MAGIC 0x42
 #define EEPROM_VERSION 0
 
-// struct for recieving RGB colors
+// struct for receiving RGB colors
 struct Color {
     uint8 r;
     uint8 g;
@@ -119,7 +119,7 @@ namespace Argument{
 enum command_type {
     BUTTON = 0,        // no data passed. Shown as a button
     SWITCH = 1,        // passes in true or false. Shown as a switch
-    SLIDER_UINT8 = 2,        // passes in an int within the range. Shown as a SLIDER_UINT8. Must add 2 int args to the command
+    SLIDER_UINT8 = 2,  // passes in an int within the range. Shown as a SLIDER_UINT8. Must add 2 int args to the command
     COLOR = 3,         // passes in a color struct. Shown as a color picker
     DROPDOWN = 4,      // passes in an int with a specific value. Shown as a dropdown Must add at least 1 char* arg to the command
     STRING = 5,        // passes in a string. Shown as a single line input
@@ -138,18 +138,18 @@ enum default_message_type : uint16_t {
 
 // struct for commands
 struct Command {
-    const char* name;                   // the display name
-    uint16_t id;                        // the unique ID. Will be sent by server to call function
-    command_type type;                  // the type of command, used to determine what is shown on the webpage
-    ArgValue* additional_args;          // additional arguments to be passed to the server
-    uint8_t additional_arg_num;         // the number of additional arguments
-    void (*recieve_command_function)(ArgValue*, uint8); // the function to be called with the responce
+    const char* name;                                   // the display name
+    uint16_t id;                                        // the unique ID. Will be sent by server to call function
+    command_type type;                                  // the type of command, used to determine what is shown on the webpage
+    ArgValue* additional_args;                          // additional arguments to be passed to the server
+    uint8_t additional_arg_num;                         // the number of additional arguments
+    void (*receive_command_function)(ArgValue*, uint8); // the function to be called with the response
 } __attribute__((packed));
 
 // struct for packet headers. Packed so that it can easily be sent
 struct PacketHeader {
     uint16_t magic;           // the magic bytes indicating it is a valid packet
-    uint8 command_set;        // idicates what command set it is operating with, not currently used
+    uint8 command_set;        // indicates what command set it is operating with, not currently used
     uint16_t type;            // the type of packet. Indicates what function gets called on the  server
     uint32 packet_id;         // unique id of the packet, used to get rid of duplicates
     uint16_t packet_num;      // the packet number. 0 for a single packet message

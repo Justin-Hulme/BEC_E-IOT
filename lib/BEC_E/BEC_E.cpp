@@ -35,7 +35,7 @@ char ssid[SSID_SIZE];
 char password[WIFI_PASSWORD_SIZE];
 char server_ip[SERVER_IP_SIZE];
 
-// communication conrollers
+// communication controllers
 WiFiClient tcp_client;
 WiFiUDP udp_client;
 
@@ -96,7 +96,7 @@ namespace BEC_E {
             delay(1000);
 
             // if we try and connect too many time then run the ap again incase the ip was wrong
-            if (attempts >= TCP_CONNECTION_ATTMEPTS){
+            if (attempts >= TCP_CONNECTION_ATTEMPTS){
                 run_AP();
             }
         }
@@ -126,6 +126,7 @@ namespace BEC_E {
     }
 
     void main_loop(){
+        // TODO: refactor and reduce cyclomatic complexity?
         if (tcp_client.connected()){
             if (tcp_client.available()){
                 // read in header
@@ -142,7 +143,7 @@ namespace BEC_E {
                     int received = tcp_client.readBytes((char*)buffer + sizeof(PacketHeader), header.payload_len);
                     bool bad_packet = false;
                     
-                    // if we recieved the correct amount of data
+                    // if we received the correct amount of data
                     if (received == header.payload_len) {
                         // Validate CRC
                         uint16_t crc_received = *(uint16_t*)(buffer + total_len - 2);
@@ -158,7 +159,7 @@ namespace BEC_E {
                             // find what command it is trying to run
                             // TODO: figure out how to also run non built in commands
                             for (int i = 0; i < built_in_commands_len; i++){
-                                // if the current command matches the recieved command
+                                // if the current command matches the received command
                                 if (built_in_commands[i].type == header.type){
                                     found = true;
 
@@ -221,7 +222,7 @@ namespace BEC_E {
                                             break;
                                         }
                                     }
-                                    built_in_commands[i].recieve_command_function(args, header.argument_number);
+                                    built_in_commands[i].receive_command_function(args, header.argument_number);
 
                                     // free strings
                                     for (int j = 0; j < header.argument_number; j++){
@@ -322,20 +323,20 @@ namespace BEC_E {
         }
 
         // get the total size of the data send
-        size_t total_legth = sizeof(PacketHeader) + header.payload_len;
+        size_t total_length = sizeof(PacketHeader) + header.payload_len;
         
         // make a buffer for the data
-        uint8_t* buffer = new uint8_t[total_legth];
+        uint8_t* buffer = new uint8_t[total_length];
 
         // add data to the buffer
         memcpy(buffer, &header, sizeof(PacketHeader));
         memcpy(buffer + sizeof(PacketHeader), data, header.payload_len);
 
         // calculate the crc
-        uint16_t crc = calculate_crc16(buffer, total_legth);
+        uint16_t crc = calculate_crc16(buffer, total_length);
 
         // send the packet
-        tcp_client.write(buffer, total_legth);
+        tcp_client.write(buffer, total_length);
 
         // send the crc
         tcp_client.write((const uint8_t*)&crc, sizeof(crc));
@@ -345,23 +346,23 @@ namespace BEC_E {
 
     void send_UDP(PacketHeader header, void* data){
         // get the total size of the data send
-        size_t total_legth = sizeof(PacketHeader) + header.payload_len;
+        size_t total_length = sizeof(PacketHeader) + header.payload_len;
         
         // make a buffer for the data
-        uint8_t* buffer = new uint8_t[total_legth];
+        uint8_t* buffer = new uint8_t[total_length];
 
         // add data to the buffer
         memcpy(buffer, &header, sizeof(PacketHeader));
         memcpy(buffer + sizeof(PacketHeader), data, header.payload_len);
 
         // calculate the crc
-        uint16_t crc = calculate_crc16(buffer, total_legth);
+        uint16_t crc = calculate_crc16(buffer, total_length);
 
         // start packet to the server
         udp_client.beginPacket(server_ip, SERVER_PORT_UDP);
         
         // add the packet
-        udp_client.write(buffer, total_legth);
+        udp_client.write(buffer, total_length);
 
         // add the crc
         udp_client.write((const uint8_t*)&crc, sizeof(crc));
@@ -411,7 +412,7 @@ void handle_update(ArgValue _args[], uint8 _arg_number){
     if (http.begin(client, ota_version_path)){
         int httpCode = http.GET();
 
-        // make sure it was sucessful
+        // make sure it was successful
         if (httpCode == 200) {
             // get the version from the file
             String new_version = http.getString();
@@ -419,7 +420,7 @@ void handle_update(ArgValue _args[], uint8 _arg_number){
 
             // match it to the saved version
             if (new_version != CURRENT_VERSION){
-                BEC_E::send_log("New version avialable! Starting OTA");
+                BEC_E::send_log("New version available! Starting OTA");
 
                 // start the update
                 t_httpUpdate_return result = ESPhttpUpdate.update(client, ota_firmware_path);
@@ -474,7 +475,7 @@ void send_single_command(const Command& cmd) {
     // handle additional arguments
     switch (cmd.type){
         case SLIDER_UINT8:
-            // make sure it has the right numnber of arguments
+            // make sure it has the right number of arguments
             if (cmd.additional_arg_num != 2){
                 BEC_E::send_log("Wrong number of args for SLIDER_UINT8");
                 return;
@@ -484,7 +485,7 @@ void send_single_command(const Command& cmd) {
             total_size += 2 * (sizeof(uint8_t) + sizeof(ArgValue().uint8_val));
         break;
         case DROPDOWN:
-            // make sure it has the right numnber of arguments
+            // make sure it has the right number of arguments
             if (cmd.additional_arg_num < 1){
                 BEC_E::send_log("not enough args for dropdown");
                 return;
@@ -551,7 +552,7 @@ void send_single_command(const Command& cmd) {
             argument_type = Argument::STRING;
             
             for (int i = 0; i < cmd.additional_arg_num; i++){
-                // get the legnth of the string
+                // get the length of the string
                 uint8_t str_len = strlen(cmd.additional_args[i].str_val);
                 
                 // add argument as type string
@@ -608,7 +609,7 @@ bool connect_wifi(char* ssid, char* password){
     
     int attempts = 0;
     
-    // loop untill connected or until timeout
+    // loop until connected or until timeout
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
@@ -678,7 +679,7 @@ void handleSubmit() {
     strncpy(pass, server.arg("pass").c_str(), WIFI_PASSWORD_SIZE);
     pass[WIFI_PASSWORD_SIZE - 1] = '\0';
 
-    // copy servr ip
+    // copy server ip
     strncpy(ip, server.arg("server_ip").c_str(), SERVER_IP_SIZE);
     ip[SERVER_IP_SIZE - 1] = '\0';
 
