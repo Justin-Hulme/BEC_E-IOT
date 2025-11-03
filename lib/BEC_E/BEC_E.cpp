@@ -25,7 +25,7 @@ Command built_in_commands[] = {
 };
 
 // array of registered commands defaulting to a null command
-Command registered_commands [MAX_REGISTERED_COMMAND_NUM] = {nullptr, 65535, HIDDEN, nullptr, 0, nullptr};
+Command registered_commands [MAX_REGISTERED_COMMAND_NUM];
 
 // array of loop functions defaulting to a null function
 void (*loop_functions[MAX_LOOP_FUNCTION_NUM])() = {nullptr};
@@ -46,6 +46,35 @@ void run_AP();
 void save_credentials(const char*, const char*, const char*);
 uint16_t calculate_crc16(const uint8_t* data, size_t length);
 void clear_EEPROM();
+void run_loop_functions();
+uint8_t* read_packet(PacketHeader header);
+bool validate_crc(uint8_t* buffer, PacketHeader header);
+void handle_bad_packet(PacketHeader header);
+bool handle_command(PacketHeader header, uint8_t* buffer);
+uint16_t parse_argument(ArgValue& arg, uint8_t* payload);
+bool check_command(const Command& command, const PacketHeader& header, uint8_t* buffer);
+void init_registered_commands();
+
+uint8_t packet_arena[PACKET_ARENA_SIZE];
+uint16_t arena_pointer;
+
+uint8_t* arena_malloc(uint16_t allocation_size) {
+    // Align to 4 bytes
+    arena_pointer = (arena_pointer + 3) & ~3;
+
+    if (arena_pointer + allocation_size > PACKET_ARENA_SIZE) {
+        return nullptr;
+    }
+
+    uint8_t* return_pointer = packet_arena + arena_pointer;
+    arena_pointer += allocation_size;
+    
+    return return_pointer;
+}
+
+void arena_free(){
+    arena_pointer = 0;
+}
 
 namespace BEC_E {
     void main_setup(){
@@ -123,158 +152,44 @@ namespace BEC_E {
             // tell the server to start listening to UDP
             send_TCP(header, &buffer);
         }
+
+        init_registered_commands();
     }
 
     void main_loop(){
-        // TODO: refactor and reduce cyclomatic complexity?
-        if (tcp_client.connected()){
-            if (tcp_client.available()){
-                // read in header
-                PacketHeader header;
-                if (tcp_client.readBytes((char*)&header, sizeof(PacketHeader)) == sizeof(PacketHeader)){
-                    // allocate memory for the full packet
-                    uint16_t total_len = sizeof(PacketHeader) + header.payload_len;
-                    uint8_t* buffer = new uint8_t[total_len];
-
-                    // copy in the header
-                    memcpy(buffer, &header, sizeof(PacketHeader));
-
-                    // read in the rest of the packet
-                    int received = tcp_client.readBytes((char*)buffer + sizeof(PacketHeader), header.payload_len);
-                    bool bad_packet = false;
-                    
-                    // if we received the correct amount of data
-                    if (received == header.payload_len) {
-                        // Validate CRC
-                        uint16_t crc_received = *(uint16_t*)(buffer + total_len - 2);
-                        uint16_t crc_computed = calculate_crc16(buffer, total_len - 2);
-
-                        //if the CRC was correct
-                        if (crc_received == crc_computed) {
-                            // get the number of commands
-                            size_t built_in_commands_len = sizeof(built_in_commands)/sizeof(built_in_commands[0]);
-                            
-                            bool found = false;
-                            
-                            // find what command it is trying to run
-                            // TODO: figure out how to also run non built in commands
-                            for (int i = 0; i < built_in_commands_len; i++){
-                                // if the current command matches the received command
-                                if (built_in_commands[i].type == header.type){
-                                    found = true;
-
-                                    // get the position of the payload
-                                    uint8_t* payload = buffer + sizeof(PacketHeader);
-
-                                    // create array for arguments
-                                    ArgValue* args = new ArgValue[header.argument_number];
-                                    char** arg_string_pointers = new char*[header.argument_number];
-
-                                    for (int j = 0; j < header.argument_number; j++){
-                                        uint8_t arg_type = *(payload + 1);
-                                        arg_string_pointers[j] = NULL;
-
-                                        switch (arg_type){
-                                        case Argument::BOOL:
-                                            memcpy(&args[j].bool_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::INT8:
-                                            memcpy(&args[j].int8_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::INT16:
-                                            memcpy(&args[j].int16_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::INT32:
-                                            memcpy(&args[j].int32_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::UINT8:
-                                            memcpy(&args[j].uint8_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::UINT16:
-                                            memcpy(&args[j].uint16_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::UINT32:
-                                            memcpy(&args[j].uint32_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::FLOAT:
-                                            memcpy(&args[j].float_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::COLOR:
-                                            memcpy(&args[j].color_val, payload + 2, sizeof(ArgValue));
-                                            break;
-                                        case Argument::STRING:
-                                            // get the length
-                                            uint16 string_size;
-                                            memcpy(&string_size, payload + 2, sizeof(uint16_t));
-
-                                            // build the string
-                                            char * string = new char[string_size + 1]; // plus one because it is coming in as length based and we want it to be null terminated
-                                            memcpy(string, (char*)payload + 2 + sizeof(uint16_t), string_size);
-
-                                            // make sure it null terminates
-                                            string[string_size] = '\0';
-
-                                            args[j].str_val = string;
-                                            arg_string_pointers[j] = string;
-                                            break;
-                                        default:
-                                            send_log("argument type not defined");
-                                            break;
-                                        }
-                                    }
-                                    built_in_commands[i].receive_command_function(args, header.argument_number);
-
-                                    // free strings
-                                    for (int j = 0; j < header.argument_number; j++){
-                                        delete[] arg_string_pointers[j];
-                                    }
-                                    delete[] arg_string_pointers;
-                                    delete[] args;
-                                }
-                            }
-
-                            if (!found){
-                                BEC_E::send_log("Unknown command");
-                                return;
-                            }
-
-                            //handle_packet(&header, buffer + sizeof(PacketHeader), header.payload_len - 2);
-                        } else {
-                            BEC_E::send_log("CRC mismatch!");
-                            bad_packet = true;
-                        }
-                    } else {
-                        BEC_E::send_log("Incomplete payload received.");
-                        bad_packet = true;
-                    }
-                    
-                    if (bad_packet){
-                        // build the buffer and specify the type
-                        uint8_t buffer[1 + sizeof(uint32_t)];
-                        buffer[0] = Argument::UINT32;
-
-                        // copy the packed id into the buffer
-                        memcpy(buffer + 1, &header.packet_id, sizeof(uint32_t));
-
-                        // build the header
-                        PacketHeader resend_header = build_packet_header(RESEND, 0, 1, sizeof(buffer), 1);
-
-                        BEC_E::send_TCP(resend_header, &buffer);
-                    }
-
-                    delete[] buffer;
-                }
-            }
-        }
+        run_loop_functions();
 
         // TODO: implement heartbeat packet
-
-        // run all of the added loop functions
-        for (int i = 0; i < MAX_LOOP_FUNCTION_NUM; i++){
-            if (loop_functions[i]) {
-                loop_functions[i]();
-            }
+        
+        // skip packet stuff if we don't even have a client conencted
+        if (!tcp_client.connected() || !tcp_client.available()) return;
+        
+        // read in header
+        PacketHeader header;
+        if (tcp_client.readBytes((char*)&header, sizeof(PacketHeader)) != sizeof(PacketHeader)){
+            return;
         }
+
+        // get the packet
+        uint8_t* buffer = read_in_packet(header);
+        if (buffer == nullptr) return;
+        
+        // check the crc
+        if (!validate_crc(buffer, header)){
+            handle_bad_packet(header);
+            arena_free();
+
+            BEC_E::send_log("CRC mismatch!");
+
+            return;
+        }
+
+        // handle the command
+        if (!handle_command(header, buffer)){
+            BEC_E::send_log("Unknown command");
+        }
+
+        arena_free();
     }
 
     void register_command(struct Command command){
@@ -725,4 +640,169 @@ uint16_t calculate_crc16(const uint8_t* data, size_t length) {
         }
     }
     return crc;
+}
+
+void run_loop_functions(){
+    // loop until a null function pointer
+    for (int i = 0; i < MAX_LOOP_FUNCTION_NUM; i++){
+        if (loop_functions[i] == nullptr) return;
+
+        loop_functions[i]();
+    }
+}
+
+uint8_t* read_in_packet(PacketHeader header){
+    // allocate memory for the full packet
+    uint16_t total_len = sizeof(PacketHeader) + header.payload_len;
+    uint8_t* buffer = arena_malloc(total_len);
+    if (buffer == nullptr) return nullptr;
+
+    // copy in the header
+    memcpy(buffer, &header, sizeof(PacketHeader));
+
+    // read in the rest of the packet
+    int received = tcp_client.readBytes((char*)buffer + sizeof(PacketHeader), header.payload_len);
+
+    // verify the length
+    if (received != header.payload_len) {
+        return nullptr;
+    }
+
+    return buffer;
+}
+
+bool validate_crc(uint8_t* buffer, PacketHeader header){
+    uint16_t total_len = sizeof(PacketHeader) + header.payload_len;
+
+    // get the crc at the end of the packet
+    uint16_t crc_received;
+    memcpy(&crc_received, buffer + total_len - 2, sizeof(crc_received));
+
+    // calculate the crc of the packet
+    uint16_t crc_computed = calculate_crc16(buffer, total_len - 2);
+
+    return crc_received == crc_computed;
+}
+
+void handle_bad_packet(PacketHeader header){
+    // build the buffer and specify the type
+    uint8_t buffer[1 + sizeof(uint32_t)];
+    buffer[0] = Argument::UINT32;
+
+    // copy the packed id into the buffer
+    memcpy(buffer + 1, &header.packet_id, sizeof(uint32_t));
+
+    // build the header
+    PacketHeader resend_header = BEC_E::build_packet_header(RESEND, 0, 1, sizeof(buffer), 1);
+
+    // request the server to resend the packet
+    BEC_E::send_TCP(resend_header, buffer);
+}
+
+bool handle_command(PacketHeader header, uint8_t* buffer){
+    // get the number of commands
+    size_t built_in_commands_len = sizeof(built_in_commands)/sizeof(built_in_commands[0]);
+
+    // find what command it is trying to run
+    // TODO: figure out how to also run non built in commands
+    for (int i = 0; i < built_in_commands_len; i++){
+        if (check_command(built_in_commands[i], header, buffer)) return true;
+    }
+
+    for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++){
+        if (check_command(registered_commands[i], header, buffer)) return true;
+    }
+
+    return false;
+}
+
+bool check_command(const Command& command, const PacketHeader& header, uint8_t* buffer){
+    if (command.type != header.type){
+        return false;
+    }
+
+    // get the position of the payload
+    uint8_t* payload = buffer + sizeof(PacketHeader);
+
+    // create array for arguments
+    ArgValue* args = (ArgValue*)arena_malloc(header.argument_number * sizeof(ArgValue));
+    
+    // make sure that memory allocation worked
+    if (args == nullptr) {
+        BEC_E::send_log("Arena out of memory for string pointers");
+        return false;
+    }
+
+    // add all the arguments
+    for (int j = 0; j < header.argument_number; j++) {
+        payload += parse_argument(args[j], payload);
+    }
+
+    // run the function
+    command.receive_command_function(args, header.argument_number);
+
+    return true;
+}
+
+uint16_t parse_argument(ArgValue& arg, uint8_t* payload){
+    switch (*payload){
+        case Argument::BOOL:
+            arg.bool_val = *(bool*)(payload + 1);
+            return 1 + sizeof(bool);
+        case Argument::INT8:
+            arg.int8_val = *(int8_t*)(payload + 1);
+            return 1 + sizeof(int8_t);
+        case Argument::INT16:
+            arg.int16_val = *(int16_t*)(payload + 1);
+            return 1 + sizeof(int16_t);
+        case Argument::INT32:
+            arg.int32_val = *(int32_t*)(payload + 1);
+            return 1 + sizeof(int32_t);
+        case Argument::UINT8:
+            arg.uint8_val = *(uint8_t*)(payload + 1);
+            return 1 + sizeof(uint8_t);
+        case Argument::UINT16:
+            arg.uint16_val = *(uint16_t*)(payload + 1);
+            return 1 + sizeof(uint16_t);
+        case Argument::UINT32:
+            arg.uint32_val = *(uint32_t*)(payload + 1);
+            return 1 + sizeof(uint32_t);
+        case Argument::FLOAT:
+            arg.float_val = *(float*)(payload + 1);
+            return 1 + sizeof(float);
+        case Argument::COLOR:
+            arg.color_val = *(Color*)(payload + 1);
+            return 1 + sizeof(Color);
+        case Argument::STRING: {
+            uint16_t str_len = *(uint16_t*)(payload + 1);
+            
+            // Allocate from arena with room for null terminator
+            char* str = (char*)arena_malloc(str_len + 1);
+            if (!str) {
+                BEC_E::send_log("Arena out of memory for string");
+                arg.str_val = nullptr;
+                return 1 + 2 + str_len; // still advance payload pointer to avoid stuck parsing
+            }
+            
+            // copy the string over
+            memcpy(str, payload + 3, str_len);
+            str[str_len] = '\0';
+            
+            // add the string to the argument
+            arg.str_val = str;
+            
+            return 1 + 2 + str_len;
+        }
+        default:
+            BEC_E::send_log("argument type not defined");
+            return 1;
+    }
+}
+
+void init_registered_commands(){
+    Command default_command = {nullptr, 65535, HIDDEN, nullptr, 0, nullptr};
+    
+    for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++){
+        registered_commands[i] = default_command;
+    }
 }

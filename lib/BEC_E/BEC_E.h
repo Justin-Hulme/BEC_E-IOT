@@ -21,6 +21,10 @@
 #define MAX_COMMAND_ADDITIONAL_ARGS 5
 #endif
 
+#ifndef PACKET_ARENA_SIZE
+#define PACKET_ARENA_SIZE 1024
+#endif
+
 // ------------ WIFI Config ------------
 
 #ifndef WIFI_TIMEOUT_SECONDS
