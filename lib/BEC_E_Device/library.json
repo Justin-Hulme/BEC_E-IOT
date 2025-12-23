@@ -1,0 +1,22 @@
+{
+  "name": "BECE_Device",
+  "version": "0.1.0",
+  "description": "Library for BEC-E IoT device communication and control",
+  "keywords": "iot, communication, esp8266, tcp, udp",
+  "authors": [
+    {
+      "name": "Justin Hulme",
+      "email": "justinhulme2000@gmail.com",
+      "url": "https://github.com/Justin-Hulme"
+    }
+  ],
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": ["espressif8266"],
+  "build": {
+    "srcFilter": [
+      "+<*>",
+      "-<examples/*>"
+    ]
+  }
+}

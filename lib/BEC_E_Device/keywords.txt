@@ -1,0 +1,7 @@
+BECE_Device	KEYWORD1
+Command	KEYWORD2
+ArgValue	KEYWORD2
+arena_malloc	KEYWORD2
+arena_free	KEYWORD2
+handle_command	KEYWORD2
+send_log	KEYWORD2
