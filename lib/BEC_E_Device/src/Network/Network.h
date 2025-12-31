@@ -1,5 +1,8 @@
 #pragma once
 
+#include <WiFiClient.h>
+#include <WiFiUdp.h>
+
 #include "BEC_E_Device.h"
 
 #ifndef WIFI_TIMEOUT_SECONDS

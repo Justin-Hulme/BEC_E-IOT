@@ -22,7 +22,7 @@ void handle_restart(ArgValue _args[], uint8_t _arg_number){
     ESP.restart();
 }
 
-// TODO spit into multiple files
+// TODO spit into multiple functions
 void handle_update(ArgValue _args[], uint8 _arg_number){
     WiFiClient client;
     HTTPClient http;

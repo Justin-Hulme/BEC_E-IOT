@@ -2,61 +2,9 @@
 
 #include <stdint.h>
 
-// ----------- Buffer Config -----------
-
-// #ifndef ARG_BUFFER_SIZE
-// #define ARG_BUFFER_SIZE 10
-// #endif
-
-// #ifndef MAX_REGISTERED_COMMAND_NUM
-// #define MAX_REGISTERED_COMMAND_NUM 10
-// #endif
-
 #ifndef MAX_LOOP_FUNCTION_NUM
 #define MAX_LOOP_FUNCTION_NUM 10
 #endif
-
-// #ifndef MAX_COMMAND_ADDITIONAL_ARGS
-// #define MAX_COMMAND_ADDITIONAL_ARGS 5
-// #endif
-
-// #ifndef PACKET_ARENA_SIZE
-// #define PACKET_ARENA_SIZE 1024
-// #endif
-
-// ------------ WIFI Config ------------
-
-// #ifndef WIFI_TIMEOUT_SECONDS
-// #define WIFI_TIMEOUT_SECONDS 5
-// #endif
-
-// #ifndef SSID_SIZE
-// #define SSID_SIZE 33
-// #endif
-
-// #ifndef WIFI_PASSWORD_SIZE
-// #define WIFI_PASSWORD_SIZE 33
-// #endif
-
-// ----------- Server Config -----------
-
-// #ifndef SERVER_IP_SIZE
-// #define SERVER_IP_SIZE 16
-// #endif
-
-// #ifndef SERVER_PORT_TCP
-// #define SERVER_PORT_TCP 15000
-// #endif
-
-// #ifndef SERVER_PORT_UDP
-// #define SERVER_PORT_UDP 15001
-// #endif
-
-// #ifndef TCP_CONNECTION_ATTEMPTS
-// #define TCP_CONNECTION_ATTEMPTS 10
-// #endif
-
-// ----------- Device Config -----------
 
 #ifndef DEVICE_NAME
 #define DEVICE_NAME "default"
@@ -74,13 +22,8 @@
 #define CURRENT_VERSION "0.0.0"
 #endif
 
-// ---------- Internal Macros ----------
-
 #define MAGIC 0xBECE
 #define COMMAND_SET 0
-
-// #define EEPROM_MAGIC 0x42
-// #define EEPROM_VERSION 0
 
 // struct for receiving RGB colors
 struct Color {
@@ -129,15 +72,6 @@ enum command_type {
     HIDDEN = 6,        // no data passed. Not shown
     STRONG_BUTTON = 7, // no data passed. Shown as a button but requires a confirmation
 };
-
-// // enum for the types of messages used by built in functions
-// enum default_message_type : uint16_t {
-//     LOG_MESSAGE     = 65535,
-//     SEND_COMMAND    = 65534,
-//     SEND_NAME       = 65533,
-//     ESTABLISH_UDP   = 65532,
-//     RESEND          = 65531,
-// };
 
 // struct for commands
 struct Command {
