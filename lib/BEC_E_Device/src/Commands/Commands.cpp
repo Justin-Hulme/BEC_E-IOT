@@ -2,8 +2,9 @@
 #include <ESP8266httpUpdate.h>
 
 #include "Commands.h"
-#include "src/Network/Network.h"
-#include "src/EEPROM/EEPROM.h"
+#include "Network/Network.h"
+#include "EEPROM/BEC_E_EEPROM.h"
+#include "Areana/Arena.h"
 
 // array of built in commands
 Command built_in_commands[] = {

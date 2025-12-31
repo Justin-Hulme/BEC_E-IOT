@@ -1,7 +1,9 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
 #include <WiFiUdp.h>
 
 #include "Network.h"
+#include "EEPROM/BEC_E_EEPROM.h"
 
 // give everything access to the server ip, ssid, and password
 char ssid[SSID_SIZE];

@@ -1,61 +1,60 @@
-#include <stdint.h>
+#pragma once
 
-#ifndef BEC_E_H
-#define BEC_E_H
+#include <stdint.h>
 
 // ----------- Buffer Config -----------
 
-#ifndef ARG_BUFFER_SIZE
-#define ARG_BUFFER_SIZE 10
-#endif
+// #ifndef ARG_BUFFER_SIZE
+// #define ARG_BUFFER_SIZE 10
+// #endif
 
-#ifndef MAX_REGISTERED_COMMAND_NUM
-#define MAX_REGISTERED_COMMAND_NUM 10
-#endif
+// #ifndef MAX_REGISTERED_COMMAND_NUM
+// #define MAX_REGISTERED_COMMAND_NUM 10
+// #endif
 
 #ifndef MAX_LOOP_FUNCTION_NUM
 #define MAX_LOOP_FUNCTION_NUM 10
 #endif
 
-#ifndef MAX_COMMAND_ADDITIONAL_ARGS
-#define MAX_COMMAND_ADDITIONAL_ARGS 5
-#endif
+// #ifndef MAX_COMMAND_ADDITIONAL_ARGS
+// #define MAX_COMMAND_ADDITIONAL_ARGS 5
+// #endif
 
-#ifndef PACKET_ARENA_SIZE
-#define PACKET_ARENA_SIZE 1024
-#endif
+// #ifndef PACKET_ARENA_SIZE
+// #define PACKET_ARENA_SIZE 1024
+// #endif
 
 // ------------ WIFI Config ------------
 
-#ifndef WIFI_TIMEOUT_SECONDS
-#define WIFI_TIMEOUT_SECONDS 5
-#endif
+// #ifndef WIFI_TIMEOUT_SECONDS
+// #define WIFI_TIMEOUT_SECONDS 5
+// #endif
 
-#ifndef SSID_SIZE
-#define SSID_SIZE 33
-#endif
+// #ifndef SSID_SIZE
+// #define SSID_SIZE 33
+// #endif
 
-#ifndef WIFI_PASSWORD_SIZE
-#define WIFI_PASSWORD_SIZE 33
-#endif
+// #ifndef WIFI_PASSWORD_SIZE
+// #define WIFI_PASSWORD_SIZE 33
+// #endif
 
 // ----------- Server Config -----------
 
-#ifndef SERVER_IP_SIZE
-#define SERVER_IP_SIZE 16
-#endif
+// #ifndef SERVER_IP_SIZE
+// #define SERVER_IP_SIZE 16
+// #endif
 
-#ifndef SERVER_PORT_TCP
-#define SERVER_PORT_TCP 15000
-#endif
+// #ifndef SERVER_PORT_TCP
+// #define SERVER_PORT_TCP 15000
+// #endif
 
-#ifndef SERVER_PORT_UDP
-#define SERVER_PORT_UDP 15001
-#endif
+// #ifndef SERVER_PORT_UDP
+// #define SERVER_PORT_UDP 15001
+// #endif
 
-#ifndef TCP_CONNECTION_ATTEMPTS
-#define TCP_CONNECTION_ATTEMPTS 10
-#endif
+// #ifndef TCP_CONNECTION_ATTEMPTS
+// #define TCP_CONNECTION_ATTEMPTS 10
+// #endif
 
 // ----------- Device Config -----------
 
@@ -80,14 +79,14 @@
 #define MAGIC 0xBECE
 #define COMMAND_SET 0
 
-#define EEPROM_MAGIC 0x42
-#define EEPROM_VERSION 0
+// #define EEPROM_MAGIC 0x42
+// #define EEPROM_VERSION 0
 
 // struct for receiving RGB colors
 struct Color {
-    uint8 r;
-    uint8 g;
-    uint8 b;
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
 };
 
 // union that allows for arrays of any type
@@ -96,9 +95,9 @@ union ArgValue {
     int8_t      int8_val;
     int16_t     int16_val;
     int32_t     int32_val;
-    uint8       uint8_val;
-    uint16      uint16_val;
-    uint32      uint32_val;
+    uint8_t     uint8_val;
+    uint16_t    uint16_val;
+    uint32_t    uint32_val;
     float       float_val;
     Color       color_val;
     const char* str_val;
@@ -131,14 +130,14 @@ enum command_type {
     STRONG_BUTTON = 7, // no data passed. Shown as a button but requires a confirmation
 };
 
-// enum for the types of messages used by built in functions
-enum default_message_type : uint16_t {
-    LOG_MESSAGE     = 65535,
-    SEND_COMMAND    = 65534,
-    SEND_NAME       = 65533,
-    ESTABLISH_UDP   = 65532,
-    RESEND          = 65531,
-};
+// // enum for the types of messages used by built in functions
+// enum default_message_type : uint16_t {
+//     LOG_MESSAGE     = 65535,
+//     SEND_COMMAND    = 65534,
+//     SEND_NAME       = 65533,
+//     ESTABLISH_UDP   = 65532,
+//     RESEND          = 65531,
+// };
 
 // struct for commands
 struct Command {
@@ -147,15 +146,15 @@ struct Command {
     command_type type;                                  // the type of command, used to determine what is shown on the webpage
     ArgValue* additional_args;                          // additional arguments to be passed to the server
     uint8_t additional_arg_num;                         // the number of additional arguments
-    void (*receive_command_function)(ArgValue*, uint8); // the function to be called with the response
+    void (*receive_command_function)(ArgValue*, uint8_t); // the function to be called with the response
 } __attribute__((packed));
 
 // struct for packet headers. Packed so that it can easily be sent
 struct PacketHeader {
     uint16_t magic;           // the magic bytes indicating it is a valid packet
-    uint8 command_set;        // indicates what command set it is operating with, not currently used
+    uint8_t command_set;        // indicates what command set it is operating with, not currently used
     uint16_t type;            // the type of packet. Indicates what function gets called on the  server
-    uint32 packet_id;         // unique id of the packet, used to get rid of duplicates
+    uint32_t packet_id;         // unique id of the packet, used to get rid of duplicates
     uint16_t packet_num;      // the packet number. 0 for a single packet message
     uint16_t total_packets;   // the total number of packets in the message. 1 for a single packet message
     uint16_t payload_len;     // the length of the packet payload
@@ -174,5 +173,3 @@ namespace BEC_E {
     void send_UDP(PacketHeader, void*); // sends a packet over UDP
     void safe_delay(unsigned long); // delays for the specified time but runs the main loop while waiting
 }
-
-#endif //BEC_E_H

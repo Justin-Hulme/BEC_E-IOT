@@ -1,12 +1,12 @@
-#include "BEC_E.h"
+// #include "BEC_E.h"
 
-#include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266HTTPClient.h>
-#include <ESP8266httpUpdate.h>
+// #include <ESP8266WiFi.h>
+// #include <WiFiUdp.h>
+// #include <ESP8266WebServer.h>
+// #include <ESP8266HTTPClient.h>
+// #include <ESP8266httpUpdate.h>
 
-#include <EEPROM.h>
+// #include <EEPROM.h>
 
 // TODO restructure into multiple files
 

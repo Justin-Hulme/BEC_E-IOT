@@ -1,5 +1,13 @@
 #include "BEC_E_Device.h"
-#include "src/Arena/Arena.h"
+
+#include <EEPROM.h>
+#include <Arduino.h>
+
+#include "EEPROM/BEC_E_EEPROM.h"
+#include "Network/Network.h"
+#include "Commands/Commands.h"
+#include "Packet/Packet.h"
+#include "Areana/Arena.h"
 
 // array of loop functions defaulting to a null function
 void (*loop_functions[MAX_LOOP_FUNCTION_NUM])() = {nullptr};
