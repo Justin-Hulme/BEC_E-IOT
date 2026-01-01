@@ -2,6 +2,8 @@
 #include <ESP8266httpUpdate.h>
 
 #include "Commands.h"
+
+#include "BEC_E_Device.h"
 #include "Network/Network.h"
 #include "EEPROM/BEC_E_EEPROM.h"
 #include "Areana/Arena.h"
@@ -32,12 +34,12 @@ void handle_update(ArgValue _args[], uint8 _arg_number){
     // set up path for ota version file
     uint16_t ota_version_path_len = SERVER_IP_SIZE + strlen("/IOT/firmware/") + strlen(DEVICE_NAME) + strlen("/version.txt");
     char* ota_version_path = new char[ota_version_path_len];
-    snprintf(ota_version_path, sizeof(ota_version_path), "%s/IOT/firmware/%s_version.txt", server_ip, DEVICE_NAME);
+    snprintf(ota_version_path, ota_version_path_len, "%s/IOT/firmware/%s_version.txt", server_ip, DEVICE_NAME);
     
     // set up path for ota firmware file
     uint16_t ota_firmware_path_len = SERVER_IP_SIZE + strlen("/IOT/firmware/") + strlen(DEVICE_NAME) + strlen("/firmware.txt");
     char* ota_firmware_path = new char[ota_firmware_path_len];
-    snprintf(ota_firmware_path, sizeof(ota_firmware_path), "%s/IOT/firmware/%s/firmware.txt", server_ip, DEVICE_NAME);
+    snprintf(ota_firmware_path, ota_version_path_len, "%s/IOT/firmware/%s/firmware.txt", server_ip, DEVICE_NAME);
     
     // check for update
     if (http.begin(client, ota_version_path)){
@@ -97,13 +99,13 @@ void handle_send_commands(ArgValue _args[], uint8 _arg_number) {
 }
 
 void handle_send_name(ArgValue _args[], uint8 _arg_number){
-    char* name = DEVICE_NAME "_" DEVICE_ID;
+    const char* name = DEVICE_NAME "_" DEVICE_ID;
 
     // build the header
     PacketHeader header = BEC_E::build_packet_header(SEND_NAME, 0, 1, strlen(name), 1);
     
     // send the packet
-    BEC_E::send_TCP(header, name);
+    BEC_E::send_TCP(header, (uint8_t*)name);
 }
 
 void handle_factory_reset(ArgValue _args[], uint8 _arg_number){

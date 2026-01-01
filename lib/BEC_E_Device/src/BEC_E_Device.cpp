@@ -90,7 +90,7 @@ namespace BEC_E {
             PacketHeader header = build_packet_header(ESTABLISH_UDP, 0, 1, sizeof(buffer), 1);
             
             // tell the server to start listening to UDP
-            send_TCP(header, &buffer);
+            send_TCP(header, buffer);
         }
 
         init_registered_commands();
@@ -169,9 +169,11 @@ namespace BEC_E {
     PacketHeader build_packet_header(uint16_t type, uint16_t packet_num, uint16_t total_packets, uint16_t payload_len, uint8_t argument_number){
         static uint32 packet_id = 0;
         PacketHeader return_header = {MAGIC, COMMAND_SET, type, packet_id, packet_num, total_packets, payload_len, argument_number};
+
+        return return_header;
     }
 
-    void send_TCP(PacketHeader header, const void* data){
+    void send_TCP(PacketHeader header, uint8_t* data){
         // make sure the server is still connected
         if (!tcp_client.connected()){
             tcp_client.connect(server_ip, SERVER_PORT_TCP);
@@ -231,7 +233,7 @@ namespace BEC_E {
         PacketHeader header = build_packet_header(LOG_MESSAGE, 0, 1, strlen(message), 1);
         
         // send the packet
-        send_TCP(header, message);
+        send_TCP(header, (uint8_t*)message);
     }
 
     void safe_delay(unsigned long milli_delay){

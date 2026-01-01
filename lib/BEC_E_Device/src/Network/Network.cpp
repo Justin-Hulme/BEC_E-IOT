@@ -3,6 +3,8 @@
 #include <WiFiUdp.h>
 
 #include "Network.h"
+
+#include "BEC_E_Device.h"
 #include "EEPROM/BEC_E_EEPROM.h"
 
 // give everything access to the server ip, ssid, and password
@@ -15,6 +17,9 @@ WiFiClient tcp_client;
 WiFiUDP udp_client;
 
 ESP8266WebServer server(80);
+
+void handle_root();
+void handle_submit();
 
 bool connect_wifi(char* ssid, char* password){
     Serial.println();
@@ -55,12 +60,12 @@ void run_AP(){
 
     WiFi.softAP(DEVICE_NAME "_" DEVICE_ID);
     
-    server.on("/", handleRoot);
-    server.on("/submit", handleSubmit);
+    server.on("/", handle_root);
+    server.on("/submit", handle_submit);
     server.begin();
 }
 
-void handleRoot() {
+void handle_root() {
     // Assume you have these defined somewhere
     String html = "<form action=\"/submit\" method=\"POST\">";
     html += "SSID: <input name=\"ssid\" maxlength=" + String(SSID_SIZE - 1) + " value=\"";
@@ -80,7 +85,7 @@ void handleRoot() {
     server.send(200, "text/html", html);
 }
 
-void handleSubmit() {
+void handle_submit() {
     char ssid[SSID_SIZE];
     char pass[WIFI_PASSWORD_SIZE];
     char ip[SERVER_IP_SIZE];
@@ -134,10 +139,17 @@ void send_single_command(const Command& cmd) {
             // add enough space for all of the arguments
             for (int i = 0; i < cmd.additional_arg_num; i++){
                 total_size += sizeof(uint8_t); //for the argument type
-                total_size += sizeof(uint16_t); //for the string len
+                total_size += sizeof(uint8_t); //for the string len
                 total_size += strlen(cmd.additional_args[i].str_val);
             }
         break;
+        case BUTTON:
+        case SWITCH:
+        case COLOR:
+        case STRING:
+        case HIDDEN:
+        case STRONG_BUTTON:
+            break;
     }
 
     // reusable way of adding the argument type
@@ -204,9 +216,16 @@ void send_single_command(const Command& cmd) {
                 offset += sizeof(uint8_t);
 
                 // add the string to the buffer
-                memcpy(buffer + offset, cmd.additional_args[i].str_val, sizeof(ArgValue().str_val));
-                offset += sizeof(ArgValue().str_val);
+                memcpy(buffer + offset, cmd.additional_args[i].str_val, str_len);
+                offset += str_len;
             }
+        break;
+        case BUTTON:
+        case SWITCH:
+        case COLOR:
+        case STRING:
+        case HIDDEN:
+        case STRONG_BUTTON:
         break;
     }
 

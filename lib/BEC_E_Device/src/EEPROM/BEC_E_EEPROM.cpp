@@ -5,7 +5,7 @@
 #include "Network/Network.h"
 
 void clear_EEPROM(){
-    for (int i = 0; i < EEPROM.length(); i++) {
+    for (size_t i = 0; i < EEPROM.length(); i++) {
         EEPROM.write(i, 0xFF);
     }
 
