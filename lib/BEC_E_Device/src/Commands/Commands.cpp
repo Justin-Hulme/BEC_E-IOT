@@ -119,7 +119,7 @@ bool handle_command(PacketHeader header, uint8_t* buffer){
     size_t built_in_commands_len = sizeof(built_in_commands)/sizeof(built_in_commands[0]);
 
     // find what command it is trying to run
-    for (int i = 0; i < built_in_commands_len; i++){
+    for (size_t i = 0; i < built_in_commands_len; i++){
         if (check_command(built_in_commands[i], header, buffer)) return true;
     }
 
