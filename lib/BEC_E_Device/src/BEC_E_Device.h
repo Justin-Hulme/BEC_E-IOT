@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-
 #ifndef MAX_LOOP_FUNCTION_NUM
 #define MAX_LOOP_FUNCTION_NUM 10
 #endif
@@ -24,6 +22,8 @@
 
 #define MAGIC 0xBECE
 #define COMMAND_SET 0
+
+#include <stdint.h>
 
 // struct for receiving RGB colors
 struct Color {
@@ -86,9 +86,9 @@ struct Command {
 // struct for packet headers. Packed so that it can easily be sent
 struct PacketHeader {
     uint16_t magic;           // the magic bytes indicating it is a valid packet
-    uint8_t command_set;        // indicates what command set it is operating with, not currently used
+    uint8_t command_set;      // indicates what command set it is operating with, not currently used
     uint16_t type;            // the type of packet. Indicates what function gets called on the  server
-    uint32_t packet_id;         // unique id of the packet, used to get rid of duplicates
+    uint32_t packet_id;       // unique id of the packet, used to get rid of duplicates
     uint16_t packet_num;      // the packet number. 0 for a single packet message
     uint16_t total_packets;   // the total number of packets in the message. 1 for a single packet message
     uint16_t payload_len;     // the length of the packet payload

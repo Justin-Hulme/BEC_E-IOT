@@ -3,6 +3,7 @@
 
 #include "Commands.h"
 
+#include "debug.h"
 #include "BEC_E_Device.h"
 #include "Network/Network.h"
 #include "EEPROM/BEC_E_EEPROM.h"
@@ -214,6 +215,7 @@ uint16_t parse_argument(ArgValue& arg, uint8_t* payload){
 }
 
 void init_registered_commands(){
+    DBG_PRINTLN("\ninitializing registered commands");
     Command default_command = {nullptr, 65535, HIDDEN, nullptr, 0, nullptr};
     
     for (int i = 0; i < MAX_REGISTERED_COMMAND_NUM; i++){

@@ -6,7 +6,7 @@
 #include "BEC_E_Device.h"
 
 #ifndef WIFI_TIMEOUT_SECONDS
-#define WIFI_TIMEOUT_SECONDS 5
+#define WIFI_TIMEOUT_SECONDS 20
 #endif
 
 #ifndef SSID_SIZE

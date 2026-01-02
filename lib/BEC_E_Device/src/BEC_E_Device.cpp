@@ -3,6 +3,7 @@
 #include <EEPROM.h>
 #include <Arduino.h>
 
+#include "debug.h"
 #include "EEPROM/BEC_E_EEPROM.h"
 #include "Network/Network.h"
 #include "Commands/Commands.h"
@@ -18,16 +19,20 @@ uint8_t* read_in_packet(PacketHeader header);
 
 namespace BEC_E {
     void main_setup(){
-        Serial.begin(115200);
+        DBG_INIT(115200);
+        DBG_PRINTLN("");
         EEPROM.begin(1 + SSID_SIZE + WIFI_PASSWORD_SIZE + SERVER_IP_SIZE);
 
         // check for magic to see if the eeprom has been reset
         if (EEPROM.read(0) != EEPROM_MAGIC){
+            DBG_PRINTLN("EEPROM magic number missed");
             run_AP();
         }
 
         // clear the EEPROM if there is a new EEPROM version we have to follow
         if (EEPROM.read(1) != EEPROM_VERSION){
+            DBG_PRINTLN("new EEPROM version");
+
             clear_EEPROM();
 
             // record the new EEPROM version
@@ -38,16 +43,19 @@ namespace BEC_E {
         }
 
         // read in the ssid
+        DBG_PRINTLN("reading the ssid");
         for (int i = 0; i < SSID_SIZE; i++){
             ssid[i] = EEPROM.read(2 + i);
         }
 
         // read in the password
+        DBG_PRINTLN("reading the password");
         for (int i = 0; i < WIFI_PASSWORD_SIZE; i++){
             password[i] = EEPROM.read(2 + SSID_SIZE + i);
         }
 
         // read in the server ip
+        DBG_PRINTLN("reading the server ip");
         for (int i = 0; i < SERVER_IP_SIZE; i++){
             server_ip[i] = EEPROM.read(2 + SSID_SIZE + WIFI_PASSWORD_SIZE + i);
         }
@@ -60,6 +68,7 @@ namespace BEC_E {
         int attempts = 0;
 
         // attempt to connect to TCP
+        DBG_PRINTLN("\nconnecting to TCP");
         while (!tcp_client.connect(server_ip, SERVER_PORT_TCP)){
             attempts ++;
             delay(1000);
@@ -71,9 +80,11 @@ namespace BEC_E {
         }
 
         BEC_E::send_log(DEVICE_NAME "_" DEVICE_ID " CONNECTED");
+        DBG_PRINTF("connected to %s", server_ip);
 
         // connect to udp
         if (USE_UDP){
+            DBG_PRINTLN("\nconnecting to UDP");
             udp_client.begin(SERVER_PORT_UDP);
 
             // get the port
@@ -168,7 +179,7 @@ namespace BEC_E {
 
     PacketHeader build_packet_header(uint16_t type, uint16_t packet_num, uint16_t total_packets, uint16_t payload_len, uint8_t argument_number){
         static uint32 packet_id = 0;
-        PacketHeader return_header = {MAGIC, COMMAND_SET, type, packet_id, packet_num, total_packets, payload_len, argument_number};
+        PacketHeader return_header = {MAGIC, COMMAND_SET, type, packet_id++, packet_num, total_packets, payload_len, argument_number};
 
         return return_header;
     }
