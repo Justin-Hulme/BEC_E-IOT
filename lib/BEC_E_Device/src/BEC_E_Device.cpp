@@ -113,17 +113,29 @@ namespace BEC_E {
         // TODO: implement heartbeat packet
         
         // skip packet stuff if we don't even have a client conencted
+        // DBG_PRINTF("\nclient connected = %d | client available = %d\n", tcp_client.connected(), tcp_client.available());
         if (!tcp_client.connected() || !tcp_client.available()) return;
-        
+        DBG_PRINTLN("\nbytes available");
+
         // read in header
         PacketHeader header;
         if (tcp_client.readBytes((char*)&header, sizeof(PacketHeader)) != sizeof(PacketHeader)){
             return;
         }
+        DBG_PRINTF("read in header:\n");
+        DBG_PRINTF("\tmagic: %d\n", header.magic);
+        DBG_PRINTF("\tcommand_set: %d\n", header.command_set);
+        DBG_PRINTF("\ttype: %d\n", header.type);
+        DBG_PRINTF("\tpacket_id: %d\n", header.packet_id);
+        DBG_PRINTF("\tpacket_num: %d\n", header.packet_num);
+        DBG_PRINTF("\ttotal_packets: %d\n", header.total_packets);
+        DBG_PRINTF("\tpayload_len: %d\n", header.payload_len);
+        DBG_PRINTF("\targument_number: %d\n", header.argument_number);
 
         // get the packet
         uint8_t* buffer = read_in_packet(header);
         if (buffer == nullptr) return;
+        DBG_PRINTLN("read in rest of packet");
         
         // check the crc
         if (!validate_crc(buffer, header)){
@@ -131,6 +143,7 @@ namespace BEC_E {
             arena_free();
 
             BEC_E::send_log("CRC mismatch!");
+            DBG_PRINTLN("CRC mismatch");
 
             return;
         }
@@ -138,6 +151,7 @@ namespace BEC_E {
         // handle the command
         if (!handle_command(header, buffer)){
             BEC_E::send_log("Unknown command");
+            DBG_PRINTLN("unknown command");
         }
 
         arena_free();
